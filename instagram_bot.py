@@ -508,39 +508,35 @@ def main():
     if not Config.BOT_TOKEN or Config.BOT_TOKEN == 'YOUR_BOT_TOKEN_HERE':
         logger.error("BOT_TOKEN not set! Please set your bot token in environment variables.")
         return
-    
-    # Create application
-    application = Application.builder().token(Config.BOT_TOKEN).build()
-    
+
+    # Define async post-init task
+    async def post_init(application: Application):
+        # Setup Instagram client inside the running loop
+        await setup_instagram_client()
+
+        # Start keep-alive task if webhook URL is provided
+        if Config.WEBHOOK_URL:
+            application.create_task(keep_alive_ping())
+
+    # Create application with post_init
+    application = Application.builder().token(Config.BOT_TOKEN).post_init(post_init).build()
+
     # Add handlers
     application.add_handler(CommandHandler("start", start_command))
     application.add_handler(MessageHandler(
-        filters.TEXT & filters.Regex(r'instagram\.com'), 
+        filters.TEXT & filters.Regex(r'instagram\.com'),
         handle_instagram_url
     ))
     application.add_handler(CallbackQueryHandler(
-        handle_format_callback, 
+        handle_format_callback,
         pattern=r'^(video|audio)_'
     ))
-    
+
     # Add error handler
     application.add_error_handler(error_handler)
-    
-    # Setup Instagram client
-    async def post_init(application: Application):
-    # Setup Instagram client inside the running loop
-    await setup_instagram_client()
 
-    # Start keep-alive task if webhook URL is provided
-    if Config.WEBHOOK_URL:
-        application.create_task(keep_alive_ping())
-
-# Pass post_init into Application.builder()
-application = Application.builder().token(Config.BOT_TOKEN).post_init(post_init).build()
-
-    
     logger.info("Starting Instagram Downloader Bot...")
-    
+
     # Run the bot
     if Config.WEBHOOK_URL:
         # For production with webhook
