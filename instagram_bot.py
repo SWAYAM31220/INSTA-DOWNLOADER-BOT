@@ -527,11 +527,17 @@ def main():
     application.add_error_handler(error_handler)
     
     # Setup Instagram client
-    asyncio.create_task(setup_instagram_client())
-    
+    async def post_init(application: Application):
+    # Setup Instagram client inside the running loop
+    await setup_instagram_client()
+
     # Start keep-alive task if webhook URL is provided
     if Config.WEBHOOK_URL:
-        asyncio.create_task(keep_alive_ping())
+        application.create_task(keep_alive_ping())
+
+# Pass post_init into Application.builder()
+application = Application.builder().token(Config.BOT_TOKEN).post_init(post_init).build()
+
     
     logger.info("Starting Instagram Downloader Bot...")
     
